@@ -19,6 +19,7 @@ struct EngineRatio {
 
 fn main() {
     println!("Nier Replicant Ultrawide Patcher 1.0");
+    println!("It is recommended to use this tool on a clean installation of Nier Replicant.");
 
     let game_path = match detect_game_location() {
         Ok(path) => path,
@@ -47,40 +48,47 @@ fn main() {
     correct_position(&game_path, &ratio);
 
     fix_ui_scaling(&game_path, &ratio);
+
+    println!("Successfully patched game! Have Fun!");
+
+    println!("All credits go to u/helifax19 for finding this method!");
+
+    println!("Press enter to exit...");
+
+    std::io::stdin().read_line(&mut String::new()).unwrap();
 }
 
 fn fix_ui_scaling(game_path: &PathBuf, ratio: &EngineRatio) {
-    println!("This task downloads files from github they can be found here: todo");
-    let sp = Spinner::new(&Spinners::Dots9, "Fixing UI Scaling".into());
+    println!("This task downloads files from github they can be found here: https://github.com/PineappleIOnic/Nier-Replicant-Ultrawide-Patcher/tree/main/UIPatch");
 
-    let source = "https://raw.githubusercontent.com/PineappleIOnic/Nier-Replicant-Ultrawide-Patcher/main/UIPatch";
+    let source =
+        "https://github.com/PineappleIOnic/Nier-Replicant-Ultrawide-Patcher/blob/main/UIPatch/";
 
-    let filesToDownload = vec![
-        "/d3dx.ini",
-        "/d3dcompiler_46.dll",
-        "/d3d11.dll",
-        "/ShaderFixes/0a2c2125f4a421a5-vs_replace.txt",
-        "/ShaderFixes/3dvision2sbs_sli_downscale_pass1.hlsl",
-        "/ShaderFixes/3dvision2sbs_sli_downscale_pass2.hlsl",
-        "/ShaderFixes/3dvision2sbs.hlsl",
-        "/ShaderFixes/3dvision2sbs.ini",
-        "/ShaderFixes/dc88834b3469cba8-vs_replace.txt",
-        "/ShaderFixes/mouse.hlsl",
-        "/ShaderFixes/mouse.ini",
-        "/ShaderFixes/upscale.hlsl",
-        "/ShaderFixes/upscale.ini",
+    let download_list = vec![
+        "d3dx.ini",
+        "d3dcompiler_46.dll",
+        "d3d11.dll",
+        "ShaderFixes/0a2c2125f4a421a5-vs_replace.txt",
+        "ShaderFixes/3dvision2sbs_sli_downscale_pass1.hlsl",
+        "ShaderFixes/3dvision2sbs_sli_downscale_pass2.hlsl",
+        "ShaderFixes/3dvision2sbs.hlsl",
+        "ShaderFixes/3dvision2sbs.ini",
+        "ShaderFixes/dc88834b3469cba8-vs_replace.txt",
+        "ShaderFixes/mouse.hlsl",
+        "ShaderFixes/mouse.ini",
+        "ShaderFixes/upscale.hlsl",
+        "ShaderFixes/upscale.ini",
     ];
 
     // Create ShaderFixes folder if it doesn't already exist.
     let shader_fixes_path = game_path.clone().join("ShaderFixes");
     if !shader_fixes_path.exists() {
-        std::fs::create_dir_all(&shader_fixes_path).unwrap();
+        std::fs::create_dir_all(&shader_fixes_path).expect("Failed to create ShaderFixes folder");
     }
 
-
     // Start downloading files needed.
-    for file in filesToDownload {
-        match ureq::get(&format!("{}{}", source, file)).call() {
+    for file in download_list {
+        match ureq::get(&format!("{}{}?raw=true", source, file)).call() {
             Ok(res) => {
                 let len = res
                     .header("Content-Length")
@@ -123,6 +131,65 @@ fn fix_ui_scaling(game_path: &PathBuf, ratio: &EngineRatio) {
             }
         };
     }
+
+    println!("All files downloaded!");
+
+    println!("Updating configuration files...");
+
+    update_config(game_path.clone().join("ShaderFixes/0a2c2125f4a421a5-vs_replace.txt"), &ratio);
+    update_config(game_path.clone().join("ShaderFixes/dc88834b3469cba8-vs_replace.txt"), &ratio);
+}
+
+fn update_config(config_path: PathBuf, ratio: &EngineRatio) {
+    let mut config =
+        match std::fs::File::open(&config_path) {
+            Ok(file) => file,
+            Err(err) => {
+                println!("{}", err);
+                return;
+            }
+        };
+
+    // Read as text
+    let mut config_text = String::new();
+    match config.read_to_string(&mut config_text) {
+        Ok(_) => (),
+        Err(err) => {
+            println!("{}", err);
+            return;
+        }
+    };
+
+    // Replace the aspect ratios
+    let config_text = config_text.replace(
+        "float new_aspect_width = 32.0",
+        &format!("float new_aspect_width = {}", &ratio.width.to_string()),
+    );
+    let config_text = config_text.replace(
+        "float new_aspect_height = 9.0",
+        &format!("float new_aspect_height = {}", &ratio.height.to_string()),
+    );
+
+    // Write back to file
+    let mut config = match std::fs::File::create(
+        &config_path,
+    ) {
+        Ok(file) => file,
+        Err(err) => {
+            println!("{}", err);
+            return;
+        }
+    };
+
+    match config.write_all(config_text.as_bytes()) {
+        Ok(_) => (),
+        Err(err) => {
+            println!("{}", err);
+            return;
+        }
+    };
+
+    println!("Successfully updated the configuration of {}", config_path.to_str().unwrap());
 }
 
 fn patch_aspect_ratio(game_dir_path: &PathBuf, ratio: &EngineRatio) {
@@ -204,32 +271,32 @@ fn ratio_select() -> Result<EngineRatio, std::io::Error> {
         EngineRatio {
             name: "21:9 (2560x1080)".into(),
             hex: hex!("26 B4 17 40"),
-            height: 21.0,
-            width: 9.0,
+            height: 9.0,
+            width: 21.0,
         },
         EngineRatio {
             name: "21:9 (3440x1440)".into(),
             hex: hex!("8E E3 18 40"),
-            height: 21.0,
-            width: 9.0,
+            height: 9.0,
+            width: 21.0,
         },
         EngineRatio {
             name: "21:9 (3840x1600)".into(),
             hex: hex!("9A 99 19 40"),
-            height: 21.0,
-            width: 9.0,
+            height: 9.0,
+            width: 21.0,
         },
         EngineRatio {
             name: "32:10".into(),
             hex: hex!("CD CC 4C 40"),
-            height: 32.0,
-            width: 10.0,
+            height: 10.0,
+            width: 32.0,
         },
         EngineRatio {
             name: "32:9".into(),
             hex: hex!("39 8E 63 40"),
-            height: 32.0,
-            width: 9.0,
+            height: 9.0,
+            width: 32.0,
         },
     ];
 
@@ -274,8 +341,9 @@ fn backup(game_path: &PathBuf) {
         if buffer.trim() == "y" {
             std::fs::copy(&backup_path, &game_path).unwrap();
             println!("Successfully restored backup.");
-            return;
         }
+
+        return;
     }
 
     println!("Create a backup of the game? (y/n)");
