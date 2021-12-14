@@ -306,6 +306,8 @@ fn ratio_select() -> Result<EngineRatio, std::io::Error> {
         names.push(ratio.name);
     }
 
+    names.push("Custom".into());
+
     let selection;
 
     loop {
@@ -322,7 +324,102 @@ fn ratio_select() -> Result<EngineRatio, std::io::Error> {
         println!("Please select a ratio.");
     }
 
+    if selection == common_ratios.len() {
+        // Start creating a custom ratio.
+        println!("Please enter the width and height of your display in pixels.");
+
+        let mut width = String::new();
+        let mut height = String::new();
+
+        loop {
+            print!("Width: ");
+            std::io::stdout().flush().unwrap();
+            std::io::stdin().read_line(&mut width).unwrap();
+
+            print!("Height: ");
+            std::io::stdout().flush().unwrap();
+            std::io::stdin().read_line(&mut height).unwrap();
+
+            if width.trim().parse::<f32>().is_ok() && height.trim().parse::<f32>().is_ok() {
+                break;
+            }
+
+            println!("Please enter a valid number.");
+        }
+
+        let mut width = width.trim().parse::<f32>().unwrap();
+        let mut height = height.trim().parse::<f32>().unwrap();
+
+        // Calculate GCD
+        let gcd = gcd(width, height);
+        width = width / gcd;
+        height = height / gcd;
+
+        println!("Estimated ratio: {}:{}", width, height);
+        println!("Please confirm this is the correct ratio. [y/n]");
+
+        let mut buffer = String::new();
+        std::io::stdin().read_line(&mut buffer).unwrap();
+
+        if buffer.trim() != "y" {
+            println!("Please manually type your ratio.");
+
+            let mut width_string: String = String::new();
+            let mut height_string: String = String::new();
+            
+            loop {
+                print!("Ratio Width: ");
+                std::io::stdout().flush().unwrap();
+                std::io::stdin().read_line(&mut width_string).unwrap();
+
+                print!("Ratio Height: ");
+                std::io::stdout().flush().unwrap();
+                std::io::stdin().read_line(&mut height_string).unwrap();
+
+                if width_string.trim().parse::<f32>().is_ok() && height_string.trim().parse::<f32>().is_ok() {
+                    break;
+                }
+
+                println!("Please enter a valid number.");
+            }
+
+            width = width_string.trim().parse::<f32>().unwrap();
+            height = height_string.trim().parse::<f32>().unwrap();
+        }
+        
+
+        let hex: f32 = (width / height).log2();
+
+        // Create ratio
+        return Ok(EngineRatio {
+            name: format!("Custom ({}:{})", width, height).into(),
+            hex: hex.to_le_bytes(),
+            height,
+            width,
+        })
+    }
+
     Ok(common_ratios[selection].clone())
+}
+
+fn gcd(first: f32, second: f32) -> f32 {
+    let mut max = first;
+    let mut min = second;
+    if min > max {
+        let val = max;
+        max = min;
+        min = val;
+    }
+
+    loop {
+        let res = max % min;
+        if res == 0.0 {
+            return min;
+        }
+
+        max = min;
+        min = res;
+    }
 }
 
 fn backup(game_path: &PathBuf) {
@@ -368,11 +465,6 @@ fn detect_game_location() -> Result<PathBuf, String> {
     // Steam Windows Directory
     if Path::new("C:/Program Files (x86)/Steam/steamapps/common/NieR Replicant ver.1.22474487139/NieR Replicant ver.1.22474487139.exe").exists() {
         return Ok(PathBuf::from("C:/Program Files (x86)/Steam/steamapps/common/NieR Replicant ver.1.22474487139/"));
-    }
-
-    // Steam Mac OS Directory (not sure who is playing this game on MacOS but oh well)
-    if Path::new("~/Library/Application Support/Steam/steamapps/common/NieR Replicant ver.1.22474487139/NieR Replicant ver.1.22474487139.exe").exists() {
-        return Ok(PathBuf::from("/Applications/Steam/steamapps/common/NieR Replicant ver.1.22474487139/"));
     }
 
     let home_dir = dirs::home_dir().unwrap();
