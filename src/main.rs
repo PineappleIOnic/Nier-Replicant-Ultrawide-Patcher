@@ -240,8 +240,8 @@ fn correct_position(game_dir_path: &PathBuf, ratio: &EngineRatio) {
     let original_ratio = hex!("00 00 10 41 00 00 50 41 00 00 80 41 00 00 00 00");
 
     let mut new_ratio = original_ratio.clone();
-    new_ratio[0..4].clone_from_slice(&ratio.width.to_le_bytes());
-    new_ratio[8..12].clone_from_slice(&ratio.height.to_le_bytes());
+    new_ratio[0..4].clone_from_slice(&ratio.height.to_le_bytes());
+    new_ratio[8..12].clone_from_slice(&ratio.width.to_le_bytes());
 
     let mut buffer: Vec<u8> = Vec::new();
     let length = game_exe_file.read_to_end(&mut buffer).unwrap();
