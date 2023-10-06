@@ -269,6 +269,12 @@ fn ratio_select() -> Result<EngineRatio, std::io::Error> {
 
     let common_ratios = vec![
         EngineRatio {
+            name: "16:10".into(),
+            hex: hex!("CD CC CC 3F"),
+            height: 10.0,
+            width: 16.0,
+        },
+        EngineRatio {
             name: "21:9 (2560x1080)".into(),
             hex: hex!("26 B4 17 40"),
             height: 9.0,
