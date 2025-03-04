@@ -17,10 +17,47 @@ jobs:
           - target: x86_64-unknown-linux-musl
             archive: tar.gz tar.xz
     steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@latest
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          profile: minimal
+          override: true
+          components: rustfmt, clippy
+      
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      
+      - name: Create archive
+        run: |
+          cd target/${{ matrix.target }}/release
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            zip ../../../nier-replicant-ultrawide-patcher-${{ matrix.target }}.zip nier-replicant-ultrawide-patcher.exe
+          else
+            tar -czf ../../../nier-replicant-ultrawide-patcher-${{ matrix.target }}.tar.gz nier-replicant-ultrawide-patcher
+            tar -cJf ../../../nier-replicant-ultrawide-patcher-${{ matrix.target }}.tar.xz nier-replicant-ultrawide-patcher
+          fi
+      
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUSTTARGET: ${{ matrix.target }}
-          ARCHIVE_TYPES: ${{ matrix.archive }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/nier-replicant-ultrawide-patcher-${{ matrix.target }}.${{ matrix.archive == 'zip' && 'zip' || 'tar.gz' }}
+          asset_name: nier-replicant-ultrawide-patcher-${{ matrix.target }}.${{ matrix.archive == 'zip' && 'zip' || 'tar.gz' }}
+          asset_content_type: ${{ matrix.archive == 'zip' && 'application/zip' || 'application/gzip' }}
+      
+      - name: Upload XZ archive (Linux only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/nier-replicant-ultrawide-patcher-${{ matrix.target }}.tar.xz
+          asset_name: nier-replicant-ultrawide-patcher-${{ matrix.target }}.tar.xz
+          asset_content_type: application/x-xz
